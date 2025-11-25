@@ -27,7 +27,7 @@ The system uses a **Hybrid Multi-Cloud Strategy**:
 ```mermaid
 graph TD
     subgraph "Client"
-        Web[Web Portal (React/Vite)]
+        Web["Web Portal (React/Vite)"]
     end
 
     subgraph "AWS (Provider A)"
@@ -39,9 +39,9 @@ graph TD
         end
         
         subgraph "Data Layer"
-            RDS[(RDS PostgreSQL)]
-            DDB[(DynamoDB)]
-            S3[(S3 Bucket)]
+            RDS[("RDS PostgreSQL")]
+            DDB[("DynamoDB")]
+            S3[("S3 Bucket")]
         end
 
         subgraph "Serverless"
@@ -50,12 +50,12 @@ graph TD
     end
 
     subgraph "Confluent Cloud"
-        Kafka{{Kafka Cluster}}
+        Kafka{{"Kafka Cluster"}}
     end
 
     subgraph "GCP (Provider B)"
         subgraph "Dataproc"
-            Flink[Analytics Service (Flink)]
+            Flink["Analytics Service (Flink)"]
         end
     end
 
