@@ -201,7 +201,43 @@ gcloud dataproc jobs submit pyflink job.py --cluster=analytics-cluster --region=
 
 ---
 
-## ✅ Phase 8: Verification
+## 📊 Phase 8: Observability & Monitoring
+
+We use **Prometheus** for metrics, **Grafana** for visualization, and **Loki** for logging.
+
+### 1. Deploy Observability Stack
+Apply the manifests to deploy Prometheus, Grafana, Loki, and Promtail.
+
+```bash
+kubectl apply -f k8s/observability.yaml
+kubectl apply -f k8s/logging.yaml
+```
+
+### 2. Access Dashboards
+Since we are using `ClusterIP` services, use port-forwarding to access the UIs.
+
+**Grafana (Visualization)**:
+```bash
+kubectl port-forward svc/grafana 3000:3000
+```
+*   Open `http://localhost:3000` (Default login: `admin` / `admin`).
+*   **Data Sources**: Configure Prometheus (`http://prometheus:9090`) and Loki (`http://loki:3100`).
+
+**Prometheus (Metrics)**:
+```bash
+kubectl port-forward svc/prometheus 9090:9090
+```
+*   Open `http://localhost:9090`.
+
+### 3. Verify Logs (Loki)
+1.  Go to Grafana -> Explore.
+2.  Select **Loki** as the data source.
+3.  Run a query: `{app="billing-service"}`.
+4.  You should see logs from the Billing Service.
+
+---
+
+## ✅ Phase 9: Verification
 
 1.  **Frontend**: Port-forward (`cd web-portal && pnpm dev`) and visit `http://localhost:5173`.
 2.  **Test Flow**: Register -> Create Patient -> Book Appointment.
@@ -210,7 +246,7 @@ gcloud dataproc jobs submit pyflink job.py --cluster=analytics-cluster --region=
 
 ---
 
-## 🧹 Phase 9: Cleanup
+## 🧹 Phase 10: Cleanup
 
 **⚠️ IMPORTANT: Destroy resources to avoid costs.**
 
