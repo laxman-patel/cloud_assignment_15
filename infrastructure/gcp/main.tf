@@ -1,5 +1,5 @@
 provider "google" {
-  project = "my-healthcare-project"
+  project = "cc-project-479109"
   region  = "us-central1"
 }
 

@@ -1,7 +1,10 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { S3Event } from 'aws-lambda';
+import type { S3Event } from 'aws-lambda';
+// @ts-ignore
+import pdf from 'pdf-parse';
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const PATIENT_SERVICE_URL = process.env.PATIENT_SERVICE_URL || 'http://patient-service:3001';
 
 export const handler = async (event: S3Event) => {
     console.log('Received event:', JSON.stringify(event, null, 2));
@@ -13,13 +16,43 @@ export const handler = async (event: S3Event) => {
         try {
             const command = new GetObjectCommand({ Bucket: bucket, Key: key });
             const response = await s3.send(command);
-            const str = await response.Body?.transformToString();
 
-            console.log(`Processed file ${key} from bucket ${bucket}. Content length: ${str?.length}`);
-            // TODO: Parse PDF content and update patient record (call Patient Service)
+            // Convert stream to buffer
+            const streamToBuffer = (stream: any) =>
+                new Promise<Buffer>((resolve, reject) => {
+                    const chunks: any[] = [];
+                    stream.on("data", (chunk: any) => chunks.push(chunk));
+                    stream.on("error", reject);
+                    stream.on("end", () => resolve(Buffer.concat(chunks)));
+                });
+
+            const buffer = await streamToBuffer(response.Body);
+            const data = await pdf(buffer);
+            const text = data.text;
+
+            console.log(`Processed file ${key}. Extracted text length: ${text.length}`);
+
+            // Assume filename is the patient ID (e.g., "12345.pdf")
+            const patientId = key.split('.')[0];
+
+            // Call Patient Service to update record
+            const updateRes = await fetch(`${PATIENT_SERVICE_URL}/patients/${patientId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    labResults: text,
+                    lastLabUpdate: new Date().toISOString()
+                })
+            });
+
+            if (!updateRes.ok) {
+                throw new Error(`Failed to update patient service: ${updateRes.statusText}`);
+            }
+
+            console.log(`Successfully updated patient ${patientId} with lab results.`);
 
         } catch (err) {
-            console.error(`Error getting object ${key} from bucket ${bucket}.`, err);
+            console.error(`Error processing object ${key} from bucket ${bucket}.`, err);
             throw err;
         }
     }

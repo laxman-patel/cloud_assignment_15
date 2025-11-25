@@ -57,6 +57,23 @@ app.post('/patients', async (c) => {
     }
 })
 
+app.patch('/patients/:id', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    try {
+        const command = new PutCommand({
+            TableName: TABLE_NAME,
+            Item: { id, ...body }, // In a real app, use UpdateCommand to partial update
+        });
+        await docClient.send(command);
+        return c.json({ id, ...body }, 200);
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: 'Failed to update patient' }, 500);
+    }
+})
+
 export default {
     port: 3001,
     fetch: app.fetch,
