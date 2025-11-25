@@ -1,0 +1,19 @@
+{
+  "name": "patient-service",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.940.0",
+    "@aws-sdk/lib-dynamodb": "^3.940.0",
+    "@types/uuid": "^11.0.0",
+    "hono": "^4.10.6",
+    "uuid": "^13.0.0"
+  }
+}
