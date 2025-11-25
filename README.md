@@ -24,7 +24,7 @@ The system uses a **Hybrid Multi-Cloud Strategy**:
 
 ## 3. Microservices Architecture Diagram
 
-![Architectural Diagram Whiteboard](https://ibb.co/Vppg81Sn)
+![Architectural Diagram Whiteboard](https://i.ibb.co/gFFSC2Tq/Gemini-Generated-Image-cx8k14cx8k14cx8k-1.png)
 
 ```mermaid
 graph TD
