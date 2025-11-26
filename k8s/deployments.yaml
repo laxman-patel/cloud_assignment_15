@@ -240,4 +240,35 @@ spec:
     app: billing-service
   ports:
   - port: 80
-    targetPort: 3003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-portal
+  template:
+    metadata:
+      labels:
+        app: web-portal
+    spec:
+      containers:
+      - name: web-portal
+        image: laxmanlp777/web-portal:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-portal
+spec:
+  type: LoadBalancer
+  selector:
+    app: web-portal
+  ports:
+  - port: 80
+    targetPort: 80
