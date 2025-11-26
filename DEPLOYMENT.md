@@ -114,22 +114,45 @@ terraform apply -auto-approve
 
 ## 🐳 Phase 4: Build & Push Docker Images
 
-Build the microservices and push them to AWS ECR.
+Build the microservices and push them to **Docker Hub**.
 
-### 1. Login to ECR
+### 1. Login to Docker Hub
 ```bash
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.us-east-1.amazonaws.com
+docker login
 ```
 
 ### 2. Build & Push
-Repeat for `auth-service`, `patient-service`, `appointment-service`, `billing-service`.
+Replace `<your-dockerhub-username>` with your actual username.
 
 ```bash
-# Example: Auth Service
+# Auth Service
 cd auth-service
-docker build -t auth-service .
-docker tag auth-service:latest <your-ecr-url>/auth-service:latest
-docker push <your-ecr-url>/auth-service:latest
+docker build -t <your-dockerhub-username>/auth-service:latest .
+docker push <your-dockerhub-username>/auth-service:latest
+cd ..
+
+# Patient Service
+cd patient-service
+docker build -t <your-dockerhub-username>/patient-service:latest .
+docker push <your-dockerhub-username>/patient-service:latest
+cd ..
+
+# Appointment Service
+cd appointment-service
+docker build -t <your-dockerhub-username>/appointment-service:latest .
+docker push <your-dockerhub-username>/appointment-service:latest
+cd ..
+
+# Billing Service
+cd billing-service
+docker build -t <your-dockerhub-username>/billing-service:latest .
+docker push <your-dockerhub-username>/billing-service:latest
+cd ..
+
+# Web Portal (Frontend)
+cd web-portal
+docker build -t <your-dockerhub-username>/web-portal:latest .
+docker push <your-dockerhub-username>/web-portal:latest
 cd ..
 ```
 
@@ -152,7 +175,7 @@ kubectl apply -f k8s/secrets.yaml
 ```
 
 ### 3. Update Manifests
-Edit `k8s/deployments.yaml` and replace `image: my-registry/...` with your actual ECR image URLs.
+Edit `k8s/deployments.yaml` and replace `image: my-registry/...` with your actual Docker Hub image URLs (e.g., `laxman/auth-service:latest`).
 
 ---
 

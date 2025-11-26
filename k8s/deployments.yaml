@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: my-registry/auth-service:latest
+        image: laxmanlp777/auth-service:latest
         ports:
         - containerPort: 3000
         env:
@@ -71,7 +71,7 @@ spec:
     spec:
       containers:
       - name: patient-service
-        image: my-registry/patient-service:latest
+        image: laxmanlp777/patient-service:latest
         ports:
         - containerPort: 3001
         env:
@@ -120,7 +120,7 @@ spec:
     spec:
       containers:
       - name: appointment-service
-        image: my-registry/appointment-service:latest
+        image: laxmanlp777/appointment-service:latest
         ports:
         - containerPort: 3002
         env:
@@ -189,7 +189,7 @@ spec:
     spec:
       containers:
       - name: billing-service
-        image: my-registry/billing-service:latest
+        image: laxmanlp777/billing-service:latest
         ports:
         - containerPort: 3003
         env:
