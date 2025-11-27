@@ -16,3 +16,9 @@ spec:
     automated:
       prune: true
       selfHeal: true
+  ignoreDifferences:
+  - group: ""
+    kind: Secret
+    name: app-secrets
+    jsonPointers:
+    - /data

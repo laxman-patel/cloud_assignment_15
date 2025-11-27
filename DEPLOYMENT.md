@@ -218,9 +218,14 @@ aws lambda update-function-code --function-name lab_result_processor --zip-file 
 
 ### 2. Deploy Flink Job (Analytics)
 ```bash
-# Upload job.py to Dataproc
-gcloud dataproc jobs submit pyflink job.py --cluster=analytics-cluster --region=us-central1
+# 1. Get the staging bucket name from the cluster
+BUCKET=$(gcloud dataproc clusters describe analytics-cluster --region=us-central1 --format="value(config.configBucket)")
 
+# 2. Upload the job file
+gsutil cp analytics-service/job.py gs://$BUCKET/job.py
+
+# 3. Submit the job from GCS
+gcloud dataproc jobs submit pyflink gs://$BUCKET/job.py --cluster=analytics-cluster --region=us-central1
 ```
 
 ---
