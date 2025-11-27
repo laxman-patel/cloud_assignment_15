@@ -13,6 +13,16 @@ app.get('/', (c) => {
     return c.text('Appointment Service is running!')
 })
 
+app.get('/appointments', async (c) => {
+    try {
+        const res = await query('SELECT * FROM appointments ORDER BY time DESC');
+        return c.json(res.rows);
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: 'Failed to fetch appointments' }, 500);
+    }
+})
+
 app.post('/appointments', async (c) => {
     const { patientId, doctorId, time } = await c.req.json();
 
@@ -35,7 +45,7 @@ app.post('/appointments', async (c) => {
         return c.json({ id: appointmentId, message: 'Appointment booked' }, 201);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to book appointment', err }, 500);
+        return c.json({ error: 'Failed to book appointment', err: JSON.stringify(err) }, 500);
     }
 })
 

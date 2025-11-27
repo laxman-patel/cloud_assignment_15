@@ -9,7 +9,7 @@ export const BookAppointment: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://a143d34ecac614e7193db4b5549dc9d4-2146509417.us-east-1.elb.amazonaws.com/appointments', {
+            const res = await fetch('http://a143d34ecac614e7193db4b5549dc9d4-240507666.us-east-1.elb.amazonaws.com/appointments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ patientId, doctorId, time }),

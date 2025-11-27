@@ -11,7 +11,7 @@ export const PatientList: React.FC = () => {
     const [patients, setPatients] = useState<Patient[]>([]);
 
     useEffect(() => {
-        fetch('http://localhost:3001/patients')
+        fetch('http://affd9b1a639494e95993c023569d1b3e-1503211187.us-east-1.elb.amazonaws.com/patients')
             .then((res) => res.json())
             .then((data) => setPatients(data))
             .catch((err) => console.error('Failed to fetch patients', err));
