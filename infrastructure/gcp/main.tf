@@ -24,7 +24,7 @@ resource "google_dataproc_cluster" "mycluster" {
     }
 
     software_config {
-      image_version       = "2.0-debian10"
+      image_version       = "2.2-debian12"
       optional_components = ["FLINK"]
     }
   }

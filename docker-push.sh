@@ -12,8 +12,8 @@ cd ..
 
 # Appointment Service
 cd appointment-service
-docker build -t laxmanlp777/appointment-service:latest .
-docker push laxmanlp777/appointment-service:latest
+docker build -t laxmanlp777/appointment-service:v1 .
+docker push laxmanlp777/appointment-service:v1
 cd ..
 
 # Billing Service

@@ -120,7 +120,7 @@ spec:
     spec:
       containers:
       - name: appointment-service
-        image: laxmanlp777/appointment-service:latest
+        image: laxmanlp777/appointment-service:v1
         ports:
         - containerPort: 3002
         env:
