@@ -49,6 +49,7 @@ kind: Service
 metadata:
   name: auth-service
 spec:
+  type: LoadBalancer
   selector:
     app: auth-service
   ports:
@@ -98,6 +99,7 @@ kind: Service
 metadata:
   name: patient-service
 spec:
+  type: LoadBalancer
   selector:
     app: patient-service
   ports:
@@ -167,6 +169,7 @@ kind: Service
 metadata:
   name: appointment-service
 spec:
+  type: LoadBalancer
   selector:
     app: appointment-service
   ports:
@@ -236,10 +239,12 @@ kind: Service
 metadata:
   name: billing-service
 spec:
+  type: LoadBalancer
   selector:
     app: billing-service
   ports:
   - port: 80
+    targetPort: 3003
 ---
 apiVersion: apps/v1
 kind: Deployment
