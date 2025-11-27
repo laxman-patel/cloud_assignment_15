@@ -35,7 +35,7 @@ app.post('/appointments', async (c) => {
         return c.json({ id: appointmentId, message: 'Appointment booked' }, 201);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to book appointment' }, 500);
+        return c.json({ error: 'Failed to book appointment', err }, 500);
     }
 })
 
