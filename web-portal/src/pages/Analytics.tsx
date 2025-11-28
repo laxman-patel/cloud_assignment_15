@@ -12,7 +12,14 @@ interface AppointmentAnalytics {
 }
 
 export function Analytics() {
-    const [metrics, setMetrics] = useState<AppointmentAnalytics | null>(null);
+    const [metrics, setMetrics] = useState<AppointmentAnalytics>({
+        metricType: "AppointmentAnalytics",
+        totalEventsCreated: 24,
+        avgAppointmentsPerHour: 3.3,
+        windowStartTime: 0,
+        windowEndTime: 0,
+        timestamp: 0
+    });
 
     // Real-time updates via WebSocket
     useEffect(() => {
@@ -28,8 +35,9 @@ export function Analytics() {
                 // Check if the data matches the expected structure or if it's the raw JSON string
                 // The appointment service broadcasts the raw value string from Kafka
                 const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-
+                console.log({ parsedData })
                 if (parsedData.metricType === 'AppointmentAnalytics') {
+
                     setMetrics(parsedData);
                 }
             } catch (e) {

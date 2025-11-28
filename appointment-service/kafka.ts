@@ -11,11 +11,19 @@ const kafka = new Kafka({
     } : undefined,
 });
 
+
+
 export const producer = kafka.producer();
 // Use a unique group ID for each instance to ensure all instances receive the broadcast
-export const consumer = kafka.consumer({ groupId: `appointment-events-group-${Math.random().toString(36).substring(7)}` });
+export const consumer = kafka.consumer({ groupId: "appointment-service-group" });
 
 export const connectKafka = async () => {
+    const admin = kafka.admin();
+    await admin.connect();
+    const topics = await admin.listTopics();
+    console.log('Available topics:', topics);
+    await admin.disconnect();
+
     await producer.connect();
     await consumer.connect();
     console.log('Kafka producer and consumer connected');
