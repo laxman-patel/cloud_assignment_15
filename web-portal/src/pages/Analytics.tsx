@@ -1,26 +1,45 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, Activity, Users } from 'lucide-react';
+import { BarChart3, TrendingUp, Activity } from 'lucide-react';
+import { API_URLS } from '../config';
+
+interface AppointmentAnalytics {
+    metricType: string;
+    totalEventsCreated: number;
+    avgAppointmentsPerHour: number;
+    windowStartTime: number;
+    windowEndTime: number;
+    timestamp: number;
+}
 
 export function Analytics() {
-    const [metrics, setMetrics] = useState({
-        appointmentsPerHour: 12,
-        avgWaitTime: 15,
-        patientSatisfaction: 4.8,
-        totalProcessed: 1250
-    });
+    const [metrics, setMetrics] = useState<AppointmentAnalytics | null>(null);
 
-    // Simulate real-time updates
+    // Real-time updates via WebSocket
     useEffect(() => {
-        const interval = setInterval(() => {
-            setMetrics(prev => ({
-                appointmentsPerHour: Math.max(5, prev.appointmentsPerHour + (Math.random() > 0.5 ? 1 : -1)),
-                avgWaitTime: Math.max(10, prev.avgWaitTime + (Math.random() > 0.5 ? 0.5 : -0.5)),
-                patientSatisfaction: 4.8,
-                totalProcessed: prev.totalProcessed + Math.floor(Math.random() * 3)
-            }));
-        }, 3000);
+        const ws = new WebSocket(API_URLS.WS_APPOINTMENT);
 
-        return () => clearInterval(interval);
+        ws.onopen = () => {
+            console.log('Connected to Analytics Stream');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                // Check if the data matches the expected structure or if it's the raw JSON string
+                // The appointment service broadcasts the raw value string from Kafka
+                const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+
+                if (parsedData.metricType === 'AppointmentAnalytics') {
+                    setMetrics(parsedData);
+                }
+            } catch (e) {
+                console.error('Failed to parse WS message:', e);
+            }
+        };
+
+        return () => {
+            ws.close();
+        };
     }, []);
 
     return (
@@ -30,78 +49,31 @@ export function Analytics() {
                 <p className="text-zinc-400 mt-2">Real-time data processing powered by Apache Flink.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-zinc-400">Appointments / Hour</p>
-                        <BarChart3 className="text-blue-500" size={20} />
-                    </div>
-                    <p className="text-3xl font-bold text-zinc-100">{metrics.appointmentsPerHour}</p>
-                    <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
-                        <TrendingUp size={12} /> +12% from last hour
-                    </p>
-                </div>
-
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-zinc-400">Avg Wait Time</p>
-                        <ClockIcon className="text-orange-500" size={20} />
-                    </div>
-                    <p className="text-3xl font-bold text-zinc-100">{metrics.avgWaitTime.toFixed(1)}m</p>
-                    <p className="text-xs text-zinc-500 mt-1">Target: &lt; 20m</p>
-                </div>
-
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-zinc-400">Patient Satisfaction</p>
-                        <Users className="text-violet-500" size={20} />
-                    </div>
-                    <p className="text-3xl font-bold text-zinc-100">{metrics.patientSatisfaction}/5.0</p>
-                    <p className="text-xs text-emerald-500 mt-1">Top 5% of clinics</p>
-                </div>
-
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-zinc-400">Total Events Processed</p>
+                        <p className="text-sm text-zinc-400">Total Events Created</p>
                         <Activity className="text-emerald-500" size={20} />
                     </div>
-                    <p className="text-3xl font-bold text-zinc-100">{metrics.totalProcessed.toLocaleString()}</p>
+                    <p className="text-3xl font-bold text-zinc-100">
+                        {metrics?.totalEventsCreated?.toLocaleString() ?? '0'}
+                    </p>
                     <p className="text-xs text-zinc-500 mt-1">Since system start</p>
                 </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 h-80 flex flex-col justify-center items-center text-zinc-500">
-                    <Activity size={48} className="mb-4 opacity-20" />
-                    <p>Real-time Appointment Velocity Chart</p>
-                    <p className="text-xs mt-2">(Visualization Placeholder)</p>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 h-80 flex flex-col justify-center items-center text-zinc-500">
-                    <BarChart3 size={48} className="mb-4 opacity-20" />
-                    <p>Revenue Distribution by Department</p>
-                    <p className="text-xs mt-2">(Visualization Placeholder)</p>
+                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-zinc-400">Avg Appointments / Hour</p>
+                        <BarChart3 className="text-blue-500" size={20} />
+                    </div>
+                    <p className="text-3xl font-bold text-zinc-100">
+                        {metrics?.avgAppointmentsPerHour?.toFixed(1) ?? '0.0'}
+                    </p>
+                    <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
+                        <TrendingUp size={12} /> Real-time metric
+                    </p>
                 </div>
             </div>
         </div>
-    );
-}
-
-function ClockIcon({ className, size }: { className?: string, size?: number }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-        >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-        </svg>
     );
 }

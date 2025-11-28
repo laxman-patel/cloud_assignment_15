@@ -38,7 +38,7 @@ app.post('/appointments', async (c) => {
         await producer.send({
             topic: 'appointment-events',
             messages: [
-                { value: JSON.stringify({ event: 'AppointmentCreated', appointmentId, patientId, time }) },
+                { value: JSON.stringify({ event: 'AppointmentCreated', appointmentId, patientId, doctorId, time }) },
             ],
         });
 
@@ -49,7 +49,52 @@ app.post('/appointments', async (c) => {
     }
 })
 
+import type { ServerWebSocket } from "bun";
+
+// Store connected clients
+const clients = new Set<ServerWebSocket<unknown>>();
+
+// Subscribe to analytics-insights
+import { consumer } from './kafka';
+
+const runConsumer = async () => {
+    await consumer.subscribe({ topic: 'analytics-results', fromBeginning: false });
+    await consumer.run({
+        eachMessage: async ({ message }) => {
+            const value = message.value?.toString();
+            if (value) {
+                console.log('Received insight:', value);
+                // Broadcast to all connected clients
+                for (const client of clients) {
+                    client.send(value);
+                }
+            }
+        },
+    });
+};
+
+// Start consumer in background
+runConsumer().catch(console.error);
+
 export default {
     port: 3002,
-    fetch: app.fetch,
+    fetch(req: Request, server: any) {
+        if (server.upgrade(req)) {
+            return;
+        }
+        return app.fetch(req, server);
+    },
+    websocket: {
+        open(ws: ServerWebSocket<unknown>) {
+            clients.add(ws);
+            console.log('Client connected');
+        },
+        close(ws: ServerWebSocket<unknown>) {
+            clients.delete(ws);
+            console.log('Client disconnected');
+        },
+        message(ws: ServerWebSocket<unknown>, message: string) {
+            // We don't expect messages from client, but handle if needed
+        },
+    },
 }

@@ -1,7 +1,7 @@
 import { Kafka } from 'kafkajs';
 
 const kafka = new Kafka({
-    clientId: 'appointment-service',
+    clientId: 'appointment-service-client',
     brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
     ssl: process.env.KAFKA_SSL === 'true',
     sasl: process.env.KAFKA_SASL_USERNAME ? {
@@ -12,8 +12,11 @@ const kafka = new Kafka({
 });
 
 export const producer = kafka.producer();
+// Use a unique group ID for each instance to ensure all instances receive the broadcast
+export const consumer = kafka.consumer({ groupId: `appointment-events-group-${Math.random().toString(36).substring(7)}` });
 
 export const connectKafka = async () => {
     await producer.connect();
-    console.log('Kafka producer connected');
+    await consumer.connect();
+    console.log('Kafka producer and consumer connected');
 };

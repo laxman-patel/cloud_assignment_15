@@ -5,4 +5,12 @@ import tailwindcss from '@tailwindcss/vite'; // Import the plugin
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ['lucide-react']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/lucide-react/, /node_modules/]
+    }
+  }
 })

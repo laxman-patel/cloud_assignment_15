@@ -56,11 +56,24 @@ export const startConsumer = async () => {
                         Payload: JSON.stringify(payload),
                     });
 
+                    console.log('Invoking Lambda function for invoice generation...');
                     const lambdaRes = await lambda.send(command);
-                    const lambdaResult = JSON.parse(new TextDecoder().decode(lambdaRes.Payload));
 
-                    const pdfUrl = lambdaResult.pdfUrl || '';
-                    console.log(`Generated PDF URL: ${pdfUrl}`);
+                    // Log raw Lambda response for debugging
+                    console.log('Lambda response status:', lambdaRes.StatusCode);
+                    console.log('Lambda response payload (raw):', new TextDecoder().decode(lambdaRes.Payload));
+
+                    const lambdaResult = JSON.parse(new TextDecoder().decode(lambdaRes.Payload));
+                    console.log('Lambda parsed result:', JSON.stringify(lambdaResult, null, 2));
+
+                    // Extract pdfUrl - handle both direct response and nested in body
+                    let pdfUrl = lambdaResult.pdfUrl || lambdaResult.body?.pdfUrl || null;
+
+                    if (!pdfUrl) {
+                        console.error('Lambda did not return a pdfUrl. Lambda result:', lambdaResult);
+                    } else {
+                        console.log(`✓ Generated PDF URL: ${pdfUrl}`);
+                    }
 
                     // 2. Insert into DB with PDF URL
                     await query(

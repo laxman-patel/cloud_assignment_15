@@ -30,7 +30,8 @@ export function Dashboard() {
         patients: 0,
         appointments: 0,
         revenue: 0,
-        activeDoctors: 12, // Mocked for now
+        activeDoctors: 12,
+        popularDoctor: '',
     });
     const [loading, setLoading] = useState(true);
 
@@ -40,52 +41,91 @@ export function Dashboard() {
             let appointmentCount = 0;
             let revenue = 0;
 
-            // 1. Fetch Patients
             try {
-                const patientsRes = await fetch(`${API_URLS.PATIENT}/patients`);
-                const patientsData = await patientsRes.json();
-                console.log('Patients Data:', patientsData);
-                if (Array.isArray(patientsData)) {
-                    patientCount = patientsData.length;
+                // 1. Fetch Patients
+                try {
+                    const patientsRes = await fetch(`${API_URLS.PATIENT}/patients`);
+                    if (patientsRes.ok) {
+                        const patientsData = await patientsRes.json();
+                        console.log('Patients Data:', patientsData);
+                        if (Array.isArray(patientsData)) {
+                            patientCount = patientsData.length;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch patients:", e);
                 }
-            } catch (e) {
-                console.error("Failed to fetch patients:", e);
-            }
 
-            // 2. Fetch Appointments
-            try {
-                const appointmentsRes = await fetch(`${API_URLS.APPOINTMENT}/appointments`);
-                const appointmentsData = await appointmentsRes.json();
-                console.log('Appointments Data:', appointmentsData);
-                if (Array.isArray(appointmentsData)) {
-                    appointmentCount = appointmentsData.length;
+                // 2. Fetch Appointments
+                try {
+                    const appointmentsRes = await fetch(`${API_URLS.APPOINTMENT}/appointments`);
+                    if (appointmentsRes.ok) {
+                        const appointmentsData = await appointmentsRes.json();
+                        console.log('Appointments Data:', appointmentsData);
+                        if (Array.isArray(appointmentsData)) {
+                            appointmentCount = appointmentsData.length;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch appointments:", e);
                 }
-            } catch (e) {
-                console.error("Failed to fetch appointments:", e);
-            }
 
-            // 3. Fetch Revenue
-            try {
-                const billingRes = await fetch(`${API_URLS.BILLING}/invoices`);
-                const billingData = await billingRes.json();
-                console.log('Billing Data:', billingData);
-                if (Array.isArray(billingData)) {
-                    revenue = billingData.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+                // 3. Fetch Revenue
+                try {
+                    const billingRes = await fetch(`${API_URLS.BILLING}/invoices`);
+                    if (billingRes.ok) {
+                        const billingData = await billingRes.json();
+                        console.log('Billing Data:', billingData);
+                        if (Array.isArray(billingData)) {
+                            revenue = billingData.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch invoices:", e);
                 }
-            } catch (e) {
-                console.error("Failed to fetch invoices:", e);
+            } catch (error) {
+                console.error("Error in fetchStats:", error);
+            } finally {
+                // Always update stats and set loading to false
+                setStats({
+                    patients: patientCount,
+                    appointments: appointmentCount,
+                    revenue,
+                    activeDoctors: 12,
+                    popularDoctor: stats.popularDoctor
+                });
+                setLoading(false);
             }
-
-            setStats({
-                patients: patientCount,
-                appointments: appointmentCount,
-                revenue,
-                activeDoctors: 12
-            });
-            setLoading(false);
         };
 
         fetchStats();
+
+        // Real-time updates via WebSocket
+        const ws = new WebSocket(API_URLS.WS_APPOINTMENT);
+
+        ws.onopen = () => {
+            console.log('Connected to Analytics Stream');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'analytics-update') {
+                    console.log('Real-time update:', data);
+                    setStats(prev => ({
+                        ...prev,
+                        appointments: data.totalAppointments || prev.appointments,
+                        popularDoctor: data.popularDoctor || prev.popularDoctor,
+                    }));
+                }
+            } catch (e) {
+                console.error('Failed to parse WS message:', e);
+            }
+        };
+
+        return () => {
+            ws.close();
+        };
     }, []);
 
     return (
@@ -115,8 +155,8 @@ export function Dashboard() {
                     color="text-violet-500"
                 />
                 <StatCard
-                    title="Active Doctors"
-                    value={stats.activeDoctors.toString()}
+                    title="Popular Doctor"
+                    value={stats.popularDoctor || "N/A"}
                     icon={Activity}
                     color="text-orange-500"
                 />

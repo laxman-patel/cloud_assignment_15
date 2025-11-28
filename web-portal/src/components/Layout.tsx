@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, CreditCard, FileText, BarChart3, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, CreditCard, BarChart3, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const sidebarItems = [
@@ -7,7 +7,6 @@ const sidebarItems = [
     { icon: Users, label: 'Patients', path: '/patients' },
     { icon: Calendar, label: 'Appointments', path: '/appointments' },
     { icon: CreditCard, label: 'Billing', path: '/billing' },
-    { icon: FileText, label: 'Lab Results', path: '/lab-results' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
 ];
 

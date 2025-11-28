@@ -1,1 +1,5 @@
+com/healthcare/streaming/HealthcareAnalyticsJob$AppointmentEvent.class
+com/healthcare/streaming/HealthcareAnalyticsJob$AppointmentMetricsAggregator.class
+com/healthcare/streaming/HealthcareAnalyticsJob$MetricsAccumulator.class
 com/healthcare/streaming/HealthcareAnalyticsJob.class
+com/healthcare/streaming/HealthcareAnalyticsJob$AppointmentMetrics.class
