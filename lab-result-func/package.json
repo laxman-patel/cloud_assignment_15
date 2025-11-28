@@ -3,15 +3,17 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.940.0",
-    "@types/aws-lambda": "^8.10.159",
-    "pdf-parse": "^1.1.1"
+    "@aws-sdk/client-s3": "^3.400.0",
+    "pdfkit": "^0.13.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.119",
+    "@types/node": "^20.5.9",
+    "@types/pdfkit": "^0.12.10",
+    "typescript": "^5.2.2"
   }
 }

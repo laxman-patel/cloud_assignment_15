@@ -36,35 +36,53 @@ export function Dashboard() {
 
     useEffect(() => {
         const fetchStats = async () => {
+            let patientCount = 0;
+            let appointmentCount = 0;
+            let revenue = 0;
+
+            // 1. Fetch Patients
             try {
-                // Fetch Patients Count
                 const patientsRes = await fetch(`${API_URLS.PATIENT}/patients`);
                 const patientsData = await patientsRes.json();
-                const patientCount = Array.isArray(patientsData) ? patientsData.length : 0;
+                console.log('Patients Data:', patientsData);
+                if (Array.isArray(patientsData)) {
+                    patientCount = patientsData.length;
+                }
+            } catch (e) {
+                console.error("Failed to fetch patients:", e);
+            }
 
-                // Fetch Appointments Count
+            // 2. Fetch Appointments
+            try {
                 const appointmentsRes = await fetch(`${API_URLS.APPOINTMENT}/appointments`);
                 const appointmentsData = await appointmentsRes.json();
-                const appointmentCount = Array.isArray(appointmentsData) ? appointmentsData.length : 0;
+                console.log('Appointments Data:', appointmentsData);
+                if (Array.isArray(appointmentsData)) {
+                    appointmentCount = appointmentsData.length;
+                }
+            } catch (e) {
+                console.error("Failed to fetch appointments:", e);
+            }
 
-                // Fetch Revenue (Mocked Invoice Endpoint)
+            // 3. Fetch Revenue
+            try {
                 const billingRes = await fetch(`${API_URLS.BILLING}/invoices`);
                 const billingData = await billingRes.json();
-                const revenue = Array.isArray(billingData)
-                    ? billingData.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0)
-                    : 0;
-
-                setStats({
-                    patients: patientCount,
-                    appointments: appointmentCount,
-                    revenue,
-                    activeDoctors: 12
-                });
-            } catch (error) {
-                console.error("Failed to fetch dashboard stats:", error);
-            } finally {
-                setLoading(false);
+                console.log('Billing Data:', billingData);
+                if (Array.isArray(billingData)) {
+                    revenue = billingData.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+                }
+            } catch (e) {
+                console.error("Failed to fetch invoices:", e);
             }
+
+            setStats({
+                patients: patientCount,
+                appointments: appointmentCount,
+                revenue,
+                activeDoctors: 12
+            });
+            setLoading(false);
         };
 
         fetchStats();

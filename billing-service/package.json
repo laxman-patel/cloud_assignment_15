@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.400.0",
     "@types/pg": "^8.15.6",
     "hono": "^4.10.6",
     "kafkajs": "^2.2.4",

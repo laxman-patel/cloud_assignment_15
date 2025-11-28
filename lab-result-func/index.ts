@@ -1,64 +1,71 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import type { S3Event } from 'aws-lambda';
-// @ts-ignore
-import pdf from 'pdf-parse';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import PDFDocument from 'pdfkit';
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const PATIENT_SERVICE_URL = process.env.PATIENT_SERVICE_URL || 'http://patient-service:3001';
+const BUCKET_NAME = process.env.LAB_BUCKET_NAME || 'healthcare-lab-reports-bucket'; // Reuse existing bucket var or new one
 
-export const handler = async (event: S3Event) => {
-    console.log('Received event:', JSON.stringify(event, null, 2));
+interface InvoiceEvent {
+    invoiceId: string;
+    patientId: string;
+    amount: number;
+    date: string;
+    status: string;
+}
 
-    for (const record of event.Records) {
-        const bucket = record.s3.bucket.name;
-        const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
+export const handler = async (event: InvoiceEvent) => {
+    console.log('Received invoice generation request:', JSON.stringify(event, null, 2));
 
-        try {
-            const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-            const response = await s3.send(command);
+    const { invoiceId, patientId, amount, date, status } = event;
+    const key = `invoices/invoice_${invoiceId}.pdf`;
 
-            // Convert stream to buffer
-            const streamToBuffer = (stream: any) =>
-                new Promise<Buffer>((resolve, reject) => {
-                    const chunks: any[] = [];
-                    stream.on("data", (chunk: any) => chunks.push(chunk));
-                    stream.on("error", reject);
-                    stream.on("end", () => resolve(Buffer.concat(chunks)));
-                });
+    try {
+        // Generate PDF
+        const doc = new PDFDocument();
+        const buffers: Buffer[] = [];
 
-            const buffer = await streamToBuffer(response.Body);
-            const data = await pdf(buffer);
-            const text = data.text;
+        doc.on('data', buffers.push.bind(buffers));
 
-            console.log(`Processed file ${key}. Extracted text length: ${text.length}`);
+        // PDF Content
+        doc.fontSize(25).text('INVOICE', 100, 50);
+        doc.fontSize(12).text(`Invoice ID: ${invoiceId}`, 100, 100);
+        doc.text(`Date: ${date}`, 100, 120);
+        doc.text(`Patient ID: ${patientId}`, 100, 140);
 
-            // Assume filename is the patient ID (e.g., "12345.pdf")
-            const patientId = key.split('.')[0];
+        doc.moveDown();
+        doc.fontSize(16).text(`Amount Due: $${amount.toFixed(2)}`, 100, 180);
+        doc.text(`Status: ${status}`, 100, 200);
 
-            // Call Patient Service to update record
-            const updateRes = await fetch(`${PATIENT_SERVICE_URL}/patients/${patientId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    labResults: text,
-                    lastLabUpdate: new Date().toISOString()
-                })
+        doc.end();
+
+        // Wait for PDF to finish
+        const pdfBuffer = await new Promise<Buffer>((resolve) => {
+            doc.on('end', () => {
+                resolve(Buffer.concat(buffers));
             });
+        });
 
-            if (!updateRes.ok) {
-                throw new Error(`Failed to update patient service: ${updateRes.statusText}`);
-            }
+        // Upload to S3
+        await s3.send(new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: key,
+            Body: pdfBuffer,
+            ContentType: 'application/pdf',
+            // ACL: 'public-read' // Optional: if you want public access, but better to use presigned URL
+        }));
 
-            console.log(`Successfully updated patient ${patientId} with lab results.`);
+        // Construct URL (assuming public or presigned - for now returning direct S3 URL)
+        // In a real app, you'd generate a Presigned GET URL here if the bucket is private
+        const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
 
-        } catch (err) {
-            console.error(`Error processing object ${key} from bucket ${bucket}.`, err);
-            throw err;
-        }
+        console.log(`Invoice PDF uploaded to ${url}`);
+
+        return {
+            statusCode: 200,
+            pdfUrl: url
+        };
+
+    } catch (err) {
+        console.error('Error generating invoice PDF:', err);
+        throw err;
     }
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify({ message: 'Lab reports processed' }),
-    };
 };

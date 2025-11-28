@@ -233,6 +233,22 @@ spec:
               key: KAFKA_SASL_PASSWORD
         - name: KAFKA_SSL
           value: "true"
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_REGION
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_SECRET_ACCESS_KEY
+
 ---
 apiVersion: v1
 kind: Service

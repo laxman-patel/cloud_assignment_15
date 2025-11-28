@@ -8,6 +8,7 @@ interface Invoice {
     amount: number;
     status: 'PAID' | 'PENDING' | 'OVERDUE';
     date: string;
+    pdfUrl?: string;
 }
 
 export function Billing() {
@@ -50,6 +51,28 @@ export function Billing() {
         }
     };
 
+    const handlePay = async (id: string) => {
+        try {
+            const res = await fetch(`${API_URLS.BILLING}/invoices/${id}/pay`, {
+                method: 'POST',
+            });
+            if (res.ok) {
+                // Refresh list
+                const updatedInvoices = invoices.map(inv =>
+                    inv.id === id ? { ...inv, status: 'PAID' as const } : inv
+                );
+                setInvoices(updatedInvoices);
+            }
+        } catch (error) {
+            console.error('Failed to pay invoice', error);
+        }
+    };
+
+    // Calculate real stats
+    const totalRevenue = invoices.reduce((acc, inv) => acc + (inv.status === 'PAID' ? inv.amount : 0), 0);
+    const pendingPayments = invoices.reduce((acc, inv) => acc + (inv.status === 'PENDING' ? inv.amount : 0), 0);
+    const overduePayments = invoices.reduce((acc, inv) => acc + (inv.status === 'OVERDUE' ? inv.amount : 0), 0);
+
     return (
         <div className="space-y-6">
             <div>
@@ -59,16 +82,16 @@ export function Billing() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-                    <p className="text-sm text-zinc-400">Total Revenue</p>
-                    <p className="text-2xl font-bold text-zinc-100 mt-1">$12,450</p>
+                    <p className="text-sm text-zinc-400">Total Revenue (Paid)</p>
+                    <p className="text-2xl font-bold text-zinc-100 mt-1">${totalRevenue.toLocaleString()}</p>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
                     <p className="text-sm text-zinc-400">Pending Payments</p>
-                    <p className="text-2xl font-bold text-amber-500 mt-1">$3,200</p>
+                    <p className="text-2xl font-bold text-amber-500 mt-1">${pendingPayments.toLocaleString()}</p>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
                     <p className="text-sm text-zinc-400">Overdue</p>
-                    <p className="text-2xl font-bold text-red-500 mt-1">$850</p>
+                    <p className="text-2xl font-bold text-red-500 mt-1">${overduePayments.toLocaleString()}</p>
                 </div>
             </div>
 
@@ -99,14 +122,33 @@ export function Billing() {
                                             <td className="px-6 py-4 text-zinc-300">{inv.patientId}</td>
                                             <td className="px-6 py-4 text-zinc-400">{inv.date}</td>
                                             <td className="px-6 py-4 font-medium text-zinc-200">${inv.amount.toFixed(2)}</td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4 flex items-center gap-2">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(inv.status)}`}>
                                                     <StatusIcon size={12} />
                                                     {inv.status}
                                                 </span>
+                                                {inv.status === 'PENDING' && (
+                                                    <button
+                                                        onClick={() => handlePay(inv.id)}
+                                                        className="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded transition-colors"
+                                                    >
+                                                        Pay
+                                                    </button>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <button className="text-blue-400 hover:text-blue-300 font-medium text-xs">Download PDF</button>
+                                                {inv.pdfUrl ? (
+                                                    <a
+                                                        href={inv.pdfUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-400 hover:text-blue-300 font-medium text-xs flex items-center gap-1"
+                                                    >
+                                                        Download PDF
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-zinc-600 text-xs">Generating...</span>
+                                                )}
                                             </td>
                                         </tr>
                                     );
