@@ -64,10 +64,22 @@ const runConsumer = async () => {
             const value = message.value?.toString();
             if (value) {
                 console.log('Received insight:', value);
+                console.log('Number of connected clients:', clients.size);
+
                 // Broadcast to all connected clients
+                const deadClients = new Set<ServerWebSocket<unknown>>();
                 for (const client of clients) {
-                    client.send(value);
+                    try {
+                        console.log('Sending to client...');
+                        client.send(value);
+                        console.log('Sent successfully');
+                    } catch (error) {
+                        console.error('Failed to send to client:', error);
+                        deadClients.add(client);
+                    }
                 }
+
+                deadClients.forEach(client => clients.delete(client));
             }
         },
     });
@@ -87,6 +99,7 @@ export default {
     websocket: {
         open(ws: ServerWebSocket<unknown>) {
             clients.add(ws);
+
             console.log('Client connected');
         },
         close(ws: ServerWebSocket<unknown>) {

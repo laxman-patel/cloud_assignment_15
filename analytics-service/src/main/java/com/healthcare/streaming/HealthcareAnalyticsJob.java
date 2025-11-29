@@ -54,7 +54,7 @@ public class HealthcareAnalyticsJob {
         
         // Calculate metrics with 1-hour tumbling windows
         DataStream<String> analyticsStream = parsedStream
-                .windowAll(TumblingProcessingTimeWindows.of(Time.hours(1)))
+                .windowAll(TumblingProcessingTimeWindows.of(Time.minutes(1)))
                 .aggregate(new AppointmentMetricsAggregator())
                 .map(HealthcareAnalyticsJob::createAnalyticsInsight);
         
@@ -92,13 +92,19 @@ public class HealthcareAnalyticsJob {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(json);
             
-            return new AppointmentEvent(
-                    node.get("event").asText(),
-                    node.get("appointmentId").asLong(),
-                    node.get("patientId").asText(),
-                    node.get("doctorId").asText(),
-                    node.get("time").asText()
+         AppointmentEvent eventObj = new AppointmentEvent(
+                node.get("event").asText(),
+                node.get("appointmentId").asLong(),
+                node.get("patientId").asText(),
+                node.get("doctorId").asText(),
+                node.get("time").asText()
             );
+
+            System.out.println("RECEIVED APPOINTMENT EVENT: " + mapper.writeValueAsString(node));
+
+            return eventObj;
+
+
         } catch (Exception e) {
             System.err.println("Error parsing appointment event: " + e.getMessage());
             return null;
@@ -117,7 +123,12 @@ public class HealthcareAnalyticsJob {
             insight.put("windowEndTime", metrics.windowEnd);
             insight.put("timestamp", System.currentTimeMillis());
             
-            return mapper.writeValueAsString(insight);
+            String out = mapper.writeValueAsString(insight);
+
+// print outgoing analytics payload
+System.out.println("SENDING ANALYTICS RESULT: " + out);
+
+return out;
         } catch (Exception e) {
             System.err.println("Error creating analytics insight: " + e.getMessage());
             return "{}";

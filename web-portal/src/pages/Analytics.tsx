@@ -30,26 +30,37 @@ export function Analytics() {
         };
 
         ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                // Check if the data matches the expected structure or if it's the raw JSON string
-                // The appointment service broadcasts the raw value string from Kafka
-                const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-                console.log({ parsedData })
-                if (parsedData.metricType === 'AppointmentAnalytics') {
+            console.log('Raw WS message:', event.data);
 
+            try {
+                const parsedData = JSON.parse(event.data);
+                console.log('Parsed data:', parsedData);
+                console.log('Metric type:', parsedData.metricType);
+
+                if (parsedData.metricType === 'AppointmentAnalytics') {
+                    console.log('Updating metrics with:', parsedData);
                     setMetrics(parsedData);
+                } else {
+                    console.log('Metric type mismatch:', parsedData.metricType);
                 }
             } catch (e) {
-                console.error('Failed to parse WS message:', e);
+                console.error('Failed to parse WS message:', e, 'Raw data:', event.data);
             }
         };
 
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+
         return () => {
+            console.log('Cleaning up WebSocket');
             ws.close();
         };
     }, []);
-
     return (
         <div className="space-y-6">
             <div>
