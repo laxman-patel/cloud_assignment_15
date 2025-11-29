@@ -93,24 +93,40 @@ data:
       kubernetes_sd_configs:
       - role: pod
       
+      pipeline_stages:
+      - cri: {}  # Parse CRI log format (EKS uses containerd)
+      - labels:
+          namespace:
+          pod:
+          container:
+      
       relabel_configs:
-      # 1. Map standard metadata labels
-      - action: labelmap
-        regex: __meta_kubernetes_pod_label_(.+)
-      - action: replace
-        source_labels: [__meta_kubernetes_namespace]
+      # Extract namespace
+      - source_labels: [__meta_kubernetes_namespace]
         target_label: namespace
-      - action: replace
-        source_labels: [__meta_kubernetes_pod_name]
+      
+      # Extract pod name
+      - source_labels: [__meta_kubernetes_pod_name]
         target_label: pod
-      - action: replace
-        source_labels: [__meta_kubernetes_pod_container_name]
+      
+      # Extract container name
+      - source_labels: [__meta_kubernetes_pod_container_name]
         target_label: container
       
-      # 2. THE PATH FIX: Construct the exact path based on your 'ls' output
-      # Format: /var/log/pods/<Namespace>_<PodName>_<UID>/<ContainerName>/*.log
-      - action: replace
-        source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+      # Extract pod labels as additional labels
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      
+      # Extract node name
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node
+      
+      # Construct the log path
+      - source_labels: 
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_pod_name
+        - __meta_kubernetes_pod_uid
+        - __meta_kubernetes_pod_container_name
         separator: "/"
         regex: "([^/]+)/([^/]+)/([^/]+)/([^/]+)"
         target_label: __path__
