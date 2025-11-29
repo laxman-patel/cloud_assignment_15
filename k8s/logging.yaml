@@ -1,4 +1,6 @@
+# ===========================
 # 1. LOKI (Log Database)
+# ===========================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,8 +33,11 @@ spec:
     targetPort: 3100
 
 ---
+# ===========================
 # 2. PROMTAIL (Log Collector)
+# ===========================
 
+# Service Account & RBAC
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -52,7 +57,6 @@ rules:
   - pods
   verbs: ["get", "watch", "list"]
 ---
-# RBAC FIX APPLIED HERE
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -60,13 +64,14 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: promtail
-  namespace: default 
+  namespace: default  # Confirmed 'default' via your ls output
 roleRef:
   kind: ClusterRole
   name: promtail-clusterrole
   apiGroup: rbac.authorization.k8s.io
+
 ---
-# EKS CONFIG FIX APPLIED HERE
+# ConfigMap: The Core Fix
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -87,9 +92,9 @@ data:
     - job_name: kubernetes-pods
       kubernetes_sd_configs:
       - role: pod
+      
       relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_node_name]
-        target_label: __host__
+      # 1. Map standard metadata labels
       - action: labelmap
         regex: __meta_kubernetes_pod_label_(.+)
       - action: replace
@@ -102,14 +107,17 @@ data:
         source_labels: [__meta_kubernetes_pod_container_name]
         target_label: container
       
-      # --- EKS SPECIFIC PATH FIX ---
-      # Adjusted to use double wildcard (**) for EKS nested log structure
-      - replacement: /var/log/pods/*$1/**/*.log
-        separator: /
-        source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+      # 2. THE PATH FIX: Construct the exact path based on your 'ls' output
+      # Format: /var/log/pods/<Namespace>_<PodName>_<UID>/<ContainerName>/*.log
+      - action: replace
+        source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+        separator: "/"
+        regex: "([^/]+)/([^/]+)/([^/]+)/([^/]+)"
         target_label: __path__
+        replacement: "/var/log/pods/$1_$2_$3/$4/*.log"
+
 ---
-# DaemonSet: Runs Promtail on every node
+# DaemonSet: Runs as Root to read EKS logs
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -124,6 +132,7 @@ spec:
         app: promtail
     spec:
       serviceAccountName: promtail
+      # CRITICAL: Run as root to access host logs
       securityContext:
         runAsUser: 0
         runAsGroup: 0
