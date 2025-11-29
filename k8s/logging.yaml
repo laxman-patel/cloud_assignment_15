@@ -31,7 +31,7 @@ spec:
     targetPort: 3100
 
 ---
-# 2. PROMTAIL (Log Collector & Forwarder)
+# 2. PROMTAIL (Log Collector)
 
 apiVersion: v1
 kind: ServiceAccount
@@ -52,6 +52,7 @@ rules:
   - pods
   verbs: ["get", "watch", "list"]
 ---
+# RBAC FIX APPLIED HERE
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -59,13 +60,13 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: promtail
-  namespace: default
+  namespace: default 
 roleRef:
   kind: ClusterRole
   name: promtail-clusterrole
   apiGroup: rbac.authorization.k8s.io
 ---
-# Config: Tells Promtail where logs are and how to label them
+# EKS CONFIG FIX APPLIED HERE
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -100,12 +101,15 @@ data:
       - action: replace
         source_labels: [__meta_kubernetes_pod_container_name]
         target_label: container
-      - replacement: /var/log/pods/*$1/*.log
+      
+      # --- EKS SPECIFIC PATH FIX ---
+      # Adjusted to use double wildcard (**) for EKS nested log structure
+      - replacement: /var/log/pods/*$1/**/*.log
         separator: /
         source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
         target_label: __path__
 ---
-# DaemonSet: Runs Promtail on every node + Mounts the log volumes
+# DaemonSet: Runs Promtail on every node
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
