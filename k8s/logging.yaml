@@ -124,6 +124,10 @@ spec:
         app: promtail
     spec:
       serviceAccountName: promtail
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
       containers:
       - name: promtail
         image: grafana/promtail:2.9.0
