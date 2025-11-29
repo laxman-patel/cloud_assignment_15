@@ -94,35 +94,32 @@ data:
       - role: pod
       
       pipeline_stages:
-      - cri: {}  # Parse CRI log format (EKS uses containerd)
-      - labels:
-          namespace:
-          pod:
-          container:
+      - cri: {}
       
       relabel_configs:
-      # Extract namespace
+      # Keep the job label
       - source_labels: [__meta_kubernetes_namespace]
+        action: replace
         target_label: namespace
       
-      # Extract pod name
       - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
         target_label: pod
       
-      # Extract container name
       - source_labels: [__meta_kubernetes_pod_container_name]
+        action: replace
         target_label: container
       
-      # Extract pod labels as additional labels
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        action: replace
+        target_label: node
+      
+      # Map all pod labels
       - action: labelmap
         regex: __meta_kubernetes_pod_label_(.+)
       
-      # Extract node name
-      - source_labels: [__meta_kubernetes_pod_node_name]
-        target_label: node
-      
-      # Construct the log path
-      - source_labels: 
+      # Build the log file path
+      - source_labels:
         - __meta_kubernetes_namespace
         - __meta_kubernetes_pod_name
         - __meta_kubernetes_pod_uid
