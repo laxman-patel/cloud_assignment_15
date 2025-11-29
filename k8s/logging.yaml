@@ -71,7 +71,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 ---
-# ConfigMap: The Core Fix
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -97,37 +96,37 @@ data:
       - cri: {}
       
       relabel_configs:
-      # Keep the job label
+      # Drop pause containers
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        action: drop
+        regex: POD
+      
+      # Add namespace label
       - source_labels: [__meta_kubernetes_namespace]
-        action: replace
         target_label: namespace
       
+      # Add pod label
       - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
         target_label: pod
       
+      # Add container label
       - source_labels: [__meta_kubernetes_pod_container_name]
-        action: replace
         target_label: container
       
+      # Add node label
       - source_labels: [__meta_kubernetes_pod_node_name]
-        action: replace
         target_label: node
       
-      # Map all pod labels
-      - action: labelmap
-        regex: __meta_kubernetes_pod_label_(.+)
-      
-      # Build the log file path
+      # THE FIX: Construct the correct path
+      # Format: /var/log/pods/namespace_podname_uid/container/*.log
       - source_labels:
         - __meta_kubernetes_namespace
         - __meta_kubernetes_pod_name
         - __meta_kubernetes_pod_uid
         - __meta_kubernetes_pod_container_name
-        separator: "/"
-        regex: "([^/]+)/([^/]+)/([^/]+)/([^/]+)"
+        regex: (.+);(.+);(.+);(.+)
+        replacement: /var/log/pods/$1_$2_$3/$4/*.log
         target_label: __path__
-        replacement: "/var/log/pods/$1_$2_$3/$4/*.log"
 
 ---
 # DaemonSet: Runs as Root to read EKS logs
