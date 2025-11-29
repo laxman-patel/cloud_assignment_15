@@ -1,16 +1,18 @@
 package com.healthcare.streaming;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.util.Collector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -52,10 +54,10 @@ public class HealthcareAnalyticsJob {
                 .map(HealthcareAnalyticsJob::parseAppointmentEvent)
                 .filter(event -> event != null);
         
-        // Calculate metrics with 1-hour tumbling windows
+        // Calculate cumulative metrics with state
         DataStream<String> analyticsStream = parsedStream
-                .windowAll(TumblingProcessingTimeWindows.of(Time.minutes(1)))
-                .aggregate(new AppointmentMetricsAggregator())
+                .keyBy(event -> "global") // Single key for global state
+                .process(new CumulativeMetricsFunction())
                 .map(HealthcareAnalyticsJob::createAnalyticsInsight);
         
         // Configure Kafka Sink
@@ -92,7 +94,7 @@ public class HealthcareAnalyticsJob {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(json);
             
-         AppointmentEvent eventObj = new AppointmentEvent(
+            AppointmentEvent eventObj = new AppointmentEvent(
                 node.get("event").asText(),
                 node.get("appointmentId").asLong(),
                 node.get("patientId").asText(),
@@ -103,8 +105,6 @@ public class HealthcareAnalyticsJob {
             System.out.println("RECEIVED APPOINTMENT EVENT: " + mapper.writeValueAsString(node));
 
             return eventObj;
-
-
         } catch (Exception e) {
             System.err.println("Error parsing appointment event: " + e.getMessage());
             return null;
@@ -125,13 +125,79 @@ public class HealthcareAnalyticsJob {
             
             String out = mapper.writeValueAsString(insight);
 
-// print outgoing analytics payload
-System.out.println("SENDING ANALYTICS RESULT: " + out);
+            System.out.println("SENDING ANALYTICS RESULT: " + out);
 
-return out;
+            return out;
         } catch (Exception e) {
             System.err.println("Error creating analytics insight: " + e.getMessage());
             return "{}";
+        }
+    }
+    
+    // KeyedProcessFunction for cumulative metrics with state
+    public static class CumulativeMetricsFunction 
+            extends KeyedProcessFunction<String, AppointmentEvent, AppointmentMetrics> {
+        
+        private transient ValueState<Long> cumulativeCount;
+        private transient ValueState<Long> windowStart;
+        private transient ValueState<Long> windowCount;
+        
+        @Override
+        public void open(Configuration parameters) {
+            cumulativeCount = getRuntimeContext().getState(
+                new ValueStateDescriptor<>("cumulative", Long.class, 0L));
+            windowStart = getRuntimeContext().getState(
+                new ValueStateDescriptor<>("windowStart", Long.class, 0L));
+            windowCount = getRuntimeContext().getState(
+                new ValueStateDescriptor<>("windowCount", Long.class, 0L));
+        }
+        
+        @Override
+        public void processElement(
+                AppointmentEvent event, 
+                Context ctx, 
+                Collector<AppointmentMetrics> out) throws Exception {
+            
+            long now = System.currentTimeMillis();
+            
+            // Update cumulative count
+            long cumulative = cumulativeCount.value() + 1;
+            cumulativeCount.update(cumulative);
+            
+            // Window logic for hourly rate (reset every hour)
+            long windowStartTime = windowStart.value();
+            if (windowStartTime == 0) {
+                // First event - initialize the window
+                windowStart.update(now);
+                windowCount.update(1L);
+                windowStartTime = now; // Update local variable too
+            } else if (now - windowStartTime > 3600000) { // 1 hour has passed
+                // Reset window
+                windowStart.update(now);
+                windowCount.update(1L);
+                windowStartTime = now;
+            } else {
+                // Increment count in current window
+                windowCount.update(windowCount.value() + 1);
+            }
+            
+            // Calculate hourly rate
+            long elapsedMillis = now - windowStartTime;
+            double elapsedHours = Math.max(0.001, elapsedMillis / 3600000.0); // Prevent divide by zero
+            double avgPerHour = windowCount.value() / elapsedHours;
+            
+            AppointmentMetrics metrics = new AppointmentMetrics(
+                cumulative,
+                avgPerHour,
+                windowStartTime,
+                now
+            );
+            
+            System.out.println("ANALYTICS: totalEvents=" + cumulative + 
+                             " (previous: " + (cumulative - 1) + 
+                             "), avgPerHour=" + String.format("%.2f", avgPerHour));
+            
+            out.collect(metrics);
         }
     }
     
@@ -166,46 +232,5 @@ return out;
             this.windowStart = windowStart;
             this.windowEnd = windowEnd;
         }
-    }
-    
-    // Aggregate function for calculating metrics
-    public static class AppointmentMetricsAggregator 
-            implements AggregateFunction<AppointmentEvent, MetricsAccumulator, AppointmentMetrics> {
-        
-        @Override
-        public MetricsAccumulator createAccumulator() {
-            return new MetricsAccumulator();
-        }
-        
-        @Override
-        public MetricsAccumulator add(AppointmentEvent event, MetricsAccumulator acc) {
-            acc.count++;
-            if (acc.windowStart == 0) {
-                acc.windowStart = System.currentTimeMillis();
-            }
-            return acc;
-        }
-        
-        @Override
-        public AppointmentMetrics getResult(MetricsAccumulator acc) {
-            acc.windowEnd = System.currentTimeMillis();
-            double avgPerHour = acc.count; // Already calculated per hour window
-            return new AppointmentMetrics(acc.count, avgPerHour, 
-                                         acc.windowStart, acc.windowEnd);
-        }
-        
-        @Override
-        public MetricsAccumulator merge(MetricsAccumulator a, MetricsAccumulator b) {
-            MetricsAccumulator merged = new MetricsAccumulator();
-            merged.count = a.count + b.count;
-            merged.windowStart = Math.min(a.windowStart, b.windowStart);
-            return merged;
-        }
-    }
-    
-    public static class MetricsAccumulator {
-        public long count = 0;
-        public long windowStart = 0;
-        public long windowEnd = 0;
     }
 }
